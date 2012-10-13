@@ -69,7 +69,7 @@ while getopts ":i:p:ws:c:" opt; do
 done
 
 if [ -z "$WLAN_SSID" ]; then
-	echo "No ESSID (-s) specified" >&1
+	echo "No ESSID (-s) specified" >&2
 	exit 1
 fi
 
@@ -77,6 +77,11 @@ if [ -n "$WLAN_PHY" ]; then
 	# create a new VAP
 	WLAN_DEV="tether-${WLAN_SSID// /_}"
 	$IW phy "$WLAN_PHY" interface add "$WLAN_DEV" type __ap || exit 1
+fi
+
+if [ -z "$WLAN_DEV" ]; then
+	echo "No WLAN interface or device specified (-i/-p)" >&2
+	exit 1
 fi
 
 AP_CONF="$(mktemp hostapd-${WLAN_DEV}-XXXXX --tmpdir --suffix=.conf)"
