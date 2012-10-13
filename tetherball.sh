@@ -5,23 +5,29 @@ WLAN_CHANNEL="1"
 WLAN_PSK=""
 WLAN_OWN_ADDRESS="10.9.9.1/24"
 WLAN_DHCP_RANGE="10.9.9.100,10.9.9.150,255.255.255.0,1h"
-WLAN_DEV="wlan0"
+WLAN_DEV=""
+WLAN_PHY=""
 
 
 ### no user servicable parts beyond this line ###
 IWCONFIG="iwconfig"
 IP="ip"
+IW="iw"
 HOSTAPD="hostapd"
 DNSMASQ="dnsmasq"
 SYSCTL="sysctl"
 IPTABLES="iptables"
 
 # parse command line
-while getopts ":i:ws:c:" opt; do
+while getopts ":i:p:ws:c:" opt; do
 	case $opt in
 		i)
 			echo "WLAN device set to $OPTARG" >&2
 			WLAN_DEV="$OPTARG"
+			;;
+		p)
+			echo "WLAN physical device set to $OPTARG" >&2
+			WLAN_PHY="$OPTARG"
 			;;
 		w)
 			read -sp "WPA passphrase: " WLAN_PSK
@@ -49,6 +55,12 @@ done
 if [ -z "$WLAN_SSID" ]; then
 	echo "No ESSID (-s) specified" >&1
 	exit 1
+fi
+
+if [ -n "$WLAN_PHY" ]; then
+	# create a new VAP
+	WLAN_DEV="tether-${WLAN_SSID// /_}"
+	$IW phy "$WLAN_PHY" interface add "$WLAN_DEV" type __ap || exit 1
 fi
 
 AP_CONF="$(mktemp hostapd-${WLAN_DEV}-XXXXX --tmpdir --suffix=.conf)"
@@ -87,3 +99,9 @@ rm "$AP_CONF"
 $IPTABLES -t nat -D POSTROUTING -s "$WLAN_OWN_ADDRESS" -j MASQUERADE
 $IP addr del dev $WLAN_DEV "$WLAN_OWN_ADDRESS"
 $IP link set $WLAN_DEV down
+
+if [ -n "$WLAN_PHY" ]; then
+	# tear down the interface
+	echo "Taking down the VAP..."
+	$IW dev "$WLAN_DEV" del
+fi
