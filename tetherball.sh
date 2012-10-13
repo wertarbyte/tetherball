@@ -75,7 +75,8 @@ fi
 
 if [ -n "$WLAN_PHY" ]; then
 	# create a new VAP
-	WLAN_DEV="tether-${WLAN_SSID// /_}"
+	WLAN_DEV="tb-${WLAN_SSID// /_}"
+	WLAN_DEV="${WLAN_DEV:0:15}"
 	$IW phy "$WLAN_PHY" interface add "$WLAN_DEV" type __ap || exit 1
 fi
 
