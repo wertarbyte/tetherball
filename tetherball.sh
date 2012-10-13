@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # tetherball.sh by Stefan Tomanek <stefan@pico.ruhr.de>
 WLAN_SSID=""
 WLAN_CHANNEL="1"
@@ -17,6 +17,22 @@ HOSTAPD="hostapd"
 DNSMASQ="dnsmasq"
 SYSCTL="sysctl"
 IPTABLES="iptables"
+
+cleanup() {
+	echo "Cleaning up..." >&2
+	# cleanup
+	[ -n "$HOSTAP_PID" ] && kill $HOSTAP_PID
+	[ -e "$AP_CONF" ]    && rm "$AP_CONF"
+	$IPTABLES -t nat -D POSTROUTING -s "$WLAN_OWN_ADDRESS" -j MASQUERADE
+	$IP addr del dev $WLAN_DEV "$WLAN_OWN_ADDRESS"
+	$IP link set $WLAN_DEV down
+
+	if [ -n "$WLAN_PHY" ]; then
+		# tear down the interface
+		echo "Taking down the VAP..." >&2
+		$IW dev "$WLAN_DEV" del
+	fi
+}
 
 # parse command line
 while getopts ":i:p:ws:c:" opt; do
@@ -80,7 +96,7 @@ EOF
 	fi
 } > "$AP_CONF"
 
-echo $AP_CONF
+trap cleanup EXIT
 
 $HOSTAPD -d "$AP_CONF" &
 HOSTAP_PID=$!
@@ -92,16 +108,3 @@ $SYSCTL net.ipv4.ip_forward=1
 $IPTABLES -t nat -A POSTROUTING -s "$WLAN_OWN_ADDRESS" -j MASQUERADE
 
 $DNSMASQ -i wlan0 --dhcp-range="$WLAN_DHCP_RANGE" -d
-
-# cleanup
-kill $HOSTAP_PID
-rm "$AP_CONF"
-$IPTABLES -t nat -D POSTROUTING -s "$WLAN_OWN_ADDRESS" -j MASQUERADE
-$IP addr del dev $WLAN_DEV "$WLAN_OWN_ADDRESS"
-$IP link set $WLAN_DEV down
-
-if [ -n "$WLAN_PHY" ]; then
-	# tear down the interface
-	echo "Taking down the VAP..."
-	$IW dev "$WLAN_DEV" del
-fi
