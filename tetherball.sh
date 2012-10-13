@@ -115,4 +115,4 @@ $IP link set $WLAN_DEV up
 $SYSCTL net.ipv4.ip_forward=1
 $IPTABLES -t nat -A POSTROUTING -s "$WLAN_OWN_ADDRESS" -j MASQUERADE
 
-$DNSMASQ -i wlan0 --dhcp-range="$WLAN_DHCP_RANGE" -d
+$DNSMASQ -i "$WLAN_DEV" --dhcp-range="$WLAN_DHCP_RANGE" -d
