@@ -78,6 +78,8 @@ if [ -n "$WLAN_PHY" ]; then
 	WLAN_DEV="tb-${WLAN_SSID// /_}"
 	WLAN_DEV="${WLAN_DEV:0:15}"
 	$IW phy "$WLAN_PHY" interface add "$WLAN_DEV" type __ap || exit 1
+	RND_MAC=$(printf "%02x:%02x:%02x:%02x:%02x:%02x" 0x00 0x16 0x3e $(($RANDOM%0x7F)) $(($RANDOM%0xFF)) $(($RANDOM%0xFF)))
+	$IP link set dev "$WLAN_DEV" address "$RND_MAC"
 fi
 
 if [ -z "$WLAN_DEV" ]; then
