@@ -34,6 +34,16 @@ cleanup() {
 	fi
 }
 
+usage() {
+	echo "tetherball.sh by Stefan Tomanek <stefan@pico.ruhr.de>"
+	echo ""
+	echo " -i <interface>    WLAN interface to use"
+	echo " -p <phys>         Physical interface to use (dynamically create VAP)"
+	echo " -s <ESSID>        ESSID to use for the network"
+	echo " -c <channel>      Channel to use for the network"
+	echo " -w                Use WPA preshared key (read from stdin)"
+}
+
 # parse command line
 while getopts ":i:p:ws:c:" opt; do
 	case $opt in
@@ -59,10 +69,12 @@ while getopts ":i:p:ws:c:" opt; do
 			;;
 		\?)
 			echo "Invalid option: -$OPTARG" >&2
+			usage
 			exit 1
 			;;
 		:)
 			echo "Option -$OPTARG requires an argument." >&2
+			usage
 			exit 1
 			;;
 	esac
@@ -70,6 +82,7 @@ done
 
 if [ -z "$WLAN_SSID" ]; then
 	echo "No ESSID (-s) specified" >&2
+	usage
 	exit 1
 fi
 
@@ -84,6 +97,7 @@ fi
 
 if [ -z "$WLAN_DEV" ]; then
 	echo "No WLAN interface or device specified (-i/-p)" >&2
+	usage
 	exit 1
 fi
 
