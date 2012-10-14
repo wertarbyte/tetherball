@@ -1,7 +1,8 @@
 #!/bin/bash
 # tetherball.sh by Stefan Tomanek <stefan@pico.ruhr.de>
 WLAN_SSID=""
-WLAN_CHANNEL="1"
+WLAN_CHANNEL=""
+WLAN_DEFAULT_CHANNEL="1"
 WLAN_PSK=""
 WLAN_OWN_ADDRESS="10.9.9.1/24"
 WLAN_DHCP_RANGE="10.9.9.100,10.9.9.150,255.255.255.0,1h"
@@ -13,6 +14,7 @@ WLAN_PHY=""
 IWCONFIG="iwconfig"
 IP="ip"
 IW="iw"
+IWLIST="iwlist"
 HOSTAPD="hostapd"
 DNSMASQ="dnsmasq"
 SYSCTL="sysctl"
@@ -90,9 +92,27 @@ if [ -n "$WLAN_PHY" ]; then
 	# create a new VAP
 	WLAN_DEV="tb-${WLAN_SSID// /_}"
 	WLAN_DEV="${WLAN_DEV:0:15}"
+
 	$IW phy "$WLAN_PHY" interface add "$WLAN_DEV" type __ap || exit 1
 	RND_MAC=$(printf "%02x:%02x:%02x:%02x:%02x:%02x" 0x00 0x16 0x3e $(($RANDOM%0x7F)) $(($RANDOM%0xFF)) $(($RANDOM%0xFF)))
 	$IP link set dev "$WLAN_DEV" address "$RND_MAC"
+
+	# if no channel has been specified on the command line, we try to find out
+	# which channel is used by the hardware
+	if [ -z "$WLAN_CHANNEL" ]; then
+		# lookup the existing device
+		SLAVES=$($IW dev | awk -vP="$WLAN_PHY" '/^phy/ {PHY=$0; gsub("#", "", PHY)} PHY==P && /^[[:space:]]+Interface/ {print $2}')
+		for S in $SLAVES; do
+			WLAN_CHANNEL=$($IWLIST "$S" channel | sed -nr 's!^.*\(Channel ([0-9]+)\)$!\1!p')
+			[ -n "$WLAN_CHANNEL" ] && break;
+		done
+		echo "Found WLAN channel $WLAN_CHANNEL" >&2
+	fi
+fi
+
+# No channel set? Revert to default channel (or at least try)
+if [ -z "$WLAN_CHANNEL" ]; then
+	WLAN_CHANNEL="$WLAN_DEFAULT_CHANNEL"
 fi
 
 if [ -z "$WLAN_DEV" ]; then
