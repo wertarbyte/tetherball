@@ -39,6 +39,7 @@ cleanup() {
 usage() {
 	echo "tetherball.sh by Stefan Tomanek <stefan@pico.ruhr.de>"
 	echo ""
+	echo " -f <file>         Read configuration file"
 	echo " -i <interface>    WLAN interface to use"
 	echo " -p <phys>         Physical interface to use (dynamically create VAP)"
 	echo " -s <ESSID>        ESSID to use for the network"
@@ -47,27 +48,31 @@ usage() {
 }
 
 # parse command line
-while getopts ":i:p:ws:c:" opt; do
+while getopts ":i:p:ws:c:f:" opt; do
 	case $opt in
 		i)
 			echo "WLAN device set to $OPTARG" >&2
-			WLAN_DEV="$OPTARG"
+			CMD_WLAN_DEV="$OPTARG"
 			;;
 		p)
 			echo "WLAN physical device set to $OPTARG" >&2
-			WLAN_PHY="$OPTARG"
+			CMD_WLAN_PHY="$OPTARG"
 			;;
 		w)
-			read -sp "WPA passphrase: " WLAN_PSK
+			read -sp "WPA passphrase: " CMD_WLAN_PSK
 			echo "" >&2
 			;;
 		s)
 			echo "SSID set to $OPTARG" >&2
-			WLAN_SSID="$OPTARG"
+			CMD_WLAN_SSID="$OPTARG"
 			;;
 		c)
 			echo "Channel set to $OPTARG" >&2
-			WLAN_CHANNEL="$OPTARG"
+			CMD_WLAN_CHANNEL="$OPTARG"
+			;;
+		f)
+			echo "Reading configuration file $OPTARG" >&2
+			CMD_FILE="$OPTARG"
 			;;
 		\?)
 			echo "Invalid option: -$OPTARG" >&2
@@ -81,6 +86,21 @@ while getopts ":i:p:ws:c:" opt; do
 			;;
 	esac
 done
+
+if [[ "${!CMD_FILE[@]}" = "0" ]]; then
+	if [ -e "$CMD_FILE" ]; then
+		source "$CMD_FILE"
+	else
+		echo "Configuration file '$CMD_FILE' not found" >&1;
+		exit 1
+	fi
+fi
+
+[[ "${!CMD_WLAN_DEV[@]}" = "0" ]] && WLAN_DEV=$CMD_WLAN_DEV
+[[ "${!CMD_WLAN_SSID[@]}" = "0" ]] && WLAN_SSID=$CMD_WLAN_SSID
+[[ "${!CMD_WLAN_CHANNEL[@]}" = "0" ]] && WLAN_CHANNEL=$CMD_WLAN_CHANNEL
+[[ "${!CMD_WLAN_PHY[@]}" = "0" ]] && WLAN_PHY=$CMD_WLAN_PHY
+
 
 if [ -z "$WLAN_SSID" ]; then
 	echo "No ESSID (-s) specified" >&2
