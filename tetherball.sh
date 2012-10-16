@@ -6,6 +6,7 @@ WLAN_DEFAULT_CHANNEL="1"
 WLAN_PSK=""
 WLAN_OWN_ADDRESS="10.9.9.1/24"
 WLAN_DHCP_RANGE="10.9.9.100,10.9.9.150,255.255.255.0,1h"
+WLAN_BRIDGE=""
 WLAN_DEV=""
 WLAN_PHY=""
 
@@ -19,15 +20,20 @@ HOSTAPD="hostapd"
 DNSMASQ="dnsmasq"
 SYSCTL="sysctl"
 IPTABLES="iptables"
+BRCTL="brctl"
 
 cleanup() {
 	echo "Cleaning up..." >&2
 	# cleanup
 	[ -n "$HOSTAP_PID" ] && kill $HOSTAP_PID
 	[ -e "$AP_CONF" ]    && rm "$AP_CONF"
-	$IPTABLES -t nat -D POSTROUTING -s "$WLAN_OWN_ADDRESS" -j MASQUERADE
-	$IP addr del dev $WLAN_DEV "$WLAN_OWN_ADDRESS"
-	$IP link set $WLAN_DEV down
+	if [ -z "$WLAN_BRIDGE" ]; then
+		$IPTABLES -t nat -D POSTROUTING -s "$WLAN_OWN_ADDRESS" -j MASQUERADE
+		$IP addr del dev $WLAN_DEV "$WLAN_OWN_ADDRESS"
+		$IP link set $WLAN_DEV down
+	else
+		$BRCTL delif "$WLAN_BRIDGE" "$WLAN_DEV"
+	fi
 
 	if [ -n "$WLAN_PHY" ]; then
 		# tear down the interface
@@ -42,13 +48,14 @@ usage() {
 	echo " -f <file>         Read configuration file"
 	echo " -i <interface>    WLAN interface to use"
 	echo " -p <phys>         Physical interface to use (dynamically create VAP)"
+	echo " -b <bridge>       Do not launch DHCP server, but add interface to bridge"
 	echo " -s <ESSID>        ESSID to use for the network"
 	echo " -c <channel>      Channel to use for the network"
 	echo " -w                Use WPA preshared key (read from stdin)"
 }
 
 # parse command line
-while getopts ":i:p:ws:c:f:" opt; do
+while getopts ":i:b:p:ws:c:f:" opt; do
 	case $opt in
 		i)
 			echo "WLAN device set to $OPTARG" >&2
@@ -69,6 +76,10 @@ while getopts ":i:p:ws:c:f:" opt; do
 		c)
 			echo "Channel set to $OPTARG" >&2
 			CMD_WLAN_CHANNEL="$OPTARG"
+			;;
+		b)
+			echo "Bridge set to $OPTARG" >&2
+			CMD_WLAN_BRIDGE="$OPTARG"
 			;;
 		f)
 			echo "Reading configuration file $OPTARG" >&2
@@ -100,6 +111,7 @@ fi
 [[ "${!CMD_WLAN_SSID[@]}" = "0" ]] && WLAN_SSID=$CMD_WLAN_SSID
 [[ "${!CMD_WLAN_CHANNEL[@]}" = "0" ]] && WLAN_CHANNEL=$CMD_WLAN_CHANNEL
 [[ "${!CMD_WLAN_PHY[@]}" = "0" ]] && WLAN_PHY=$CMD_WLAN_PHY
+[[ "${!CMD_WLAN_BRIDGE[@]}" = "0" ]] && WLAN_BRIDGE=$CMD_WLAN_BRIDGE
 
 
 if [ -z "$WLAN_SSID" ]; then
@@ -164,9 +176,14 @@ $HOSTAPD -d "$AP_CONF" &
 HOSTAP_PID=$!
 sleep 1
 
-$IP addr add dev $WLAN_DEV "$WLAN_OWN_ADDRESS"
 $IP link set $WLAN_DEV up
 $SYSCTL net.ipv4.ip_forward=1
-$IPTABLES -t nat -A POSTROUTING -s "$WLAN_OWN_ADDRESS" -j MASQUERADE
+if [ -z "$WLAN_BRIDGE" ]; then
+	$IP addr add dev $WLAN_DEV "$WLAN_OWN_ADDRESS"
+	$IPTABLES -t nat -A POSTROUTING -s "$WLAN_OWN_ADDRESS" -j MASQUERADE
 
-$DNSMASQ -z -I lo -i "$WLAN_DEV" --dhcp-range="$WLAN_DHCP_RANGE" -d
+	$DNSMASQ -z -I lo -i "$WLAN_DEV" --dhcp-range="$WLAN_DHCP_RANGE" -d
+else
+	$BRCTL addif "$WLAN_BRIDGE" "$WLAN_DEV"
+	wait $HOSTAP_PID
+fi
