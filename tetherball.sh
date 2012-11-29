@@ -182,7 +182,7 @@ if [ -z "$WLAN_BRIDGE" ]; then
 	$IP addr add dev $WLAN_DEV "$WLAN_OWN_ADDRESS"
 	$IPTABLES -t nat -A POSTROUTING -s "$WLAN_OWN_ADDRESS" -j MASQUERADE
 
-	$DNSMASQ -z -I lo -i "$WLAN_DEV" --dhcp-range="$WLAN_DHCP_RANGE" -d
+	$DNSMASQ -z -I lo -i "$WLAN_DEV" --dhcp-range="$WLAN_DHCP_RANGE" --dhcp-leasefile=/tmp/tetherball.$WLAN_DEV -d
 else
 	$BRCTL addif "$WLAN_BRIDGE" "$WLAN_DEV"
 	wait $HOSTAP_PID
