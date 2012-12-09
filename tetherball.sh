@@ -112,6 +112,7 @@ fi
 [[ "${!CMD_WLAN_CHANNEL[@]}" = "0" ]] && WLAN_CHANNEL=$CMD_WLAN_CHANNEL
 [[ "${!CMD_WLAN_PHY[@]}" = "0" ]] && WLAN_PHY=$CMD_WLAN_PHY
 [[ "${!CMD_WLAN_BRIDGE[@]}" = "0" ]] && WLAN_BRIDGE=$CMD_WLAN_BRIDGE
+[[ "${!CMD_WLAN_PSK[@]}" = "0" ]] && WLAN_PSK=$CMD_WLAN_PSK
 
 
 if [ -z "$WLAN_SSID" ]; then
