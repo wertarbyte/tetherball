@@ -55,7 +55,7 @@ usage() {
 }
 
 # parse command line
-while getopts ":i:b:p:ws:c:f:" opt; do
+while getopts ":i:b:p:wWs:c:f:" opt; do
 	case $opt in
 		i)
 			echo "WLAN device set to $OPTARG" >&2
@@ -67,6 +67,10 @@ while getopts ":i:b:p:ws:c:f:" opt; do
 			;;
 		w)
 			read -sp "WPA passphrase: " CMD_WLAN_PSK
+			echo "" >&2
+			;;
+		W)
+			read -sp "WEP passphrase: " CMD_WLAN_WEP
 			echo "" >&2
 			;;
 		s)
@@ -113,6 +117,7 @@ fi
 [[ "${!CMD_WLAN_PHY[@]}" = "0" ]] && WLAN_PHY=$CMD_WLAN_PHY
 [[ "${!CMD_WLAN_BRIDGE[@]}" = "0" ]] && WLAN_BRIDGE=$CMD_WLAN_BRIDGE
 [[ "${!CMD_WLAN_PSK[@]}" = "0" ]] && WLAN_PSK=$CMD_WLAN_PSK
+[[ "${!CMD_WLAN_WEP[@]}" = "0" ]] && WLAN_WEP=$CMD_WLAN_WEP
 
 
 if [ -z "$WLAN_SSID" ]; then
@@ -167,6 +172,11 @@ EOF
 	cat <<EOF
 wpa=2
 wpa_passphrase=$WLAN_PSK
+EOF
+	fi
+	if [ -n "$WLAN_WEP" ]; then
+	cat <<EOF
+wep_default_key=$WLAN_WEP
 EOF
 	fi
 } > "$AP_CONF"
